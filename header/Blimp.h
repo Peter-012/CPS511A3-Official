@@ -21,6 +21,7 @@ public:
 	float getX();
 	float getY();
 	float getZ();
+	float getBottomBlimpY();
 	void fireMissile();
 
 

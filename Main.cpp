@@ -1,9 +1,11 @@
 
 /*
- @author: Talon Jiang
- Id: 501125811
- CPS511 A1 Part 1
 
+ CPS511 A3
+
+ @authors: 
+ Talon Jiang - 501125811
+ Peter Lee - 501088502
 
 */
 
@@ -23,6 +25,8 @@
 #include "header/GroundMesh.h"
 #include "header/WindowHandler.h"
 #include "header/Enemy.h"
+#include "header/Missile.h"
+#include "header/Util.h"
 
 
 const int VIEWPORT_WIDTH  = 800;    // Viewport width in pixels
@@ -33,6 +37,12 @@ const int VIEWPORT_HEIGHT = 600;    // Viewport height in pixels
 GroundMesh* ground = new GroundMesh(16, 0, -20, 5);
 Blimp* blimp = new Blimp(0,-1,-10);
 Enemy* blimp2 = new Enemy(0, -5, -10, blimp);
+Missile* missile1;
+
+bool firePlayerMissile = false;
+bool drawMissile = false;
+int reloadTime = 500;
+int missileTimer = reloadTime + 1;
 
 int idleTime = 0;
 
@@ -85,7 +95,15 @@ void keyboard(unsigned char key, int x, int y) {
 	case 'w': {
 		blimp->moveForward(0.5, 0.5);
 		//blimp2->moveForward(0.2, 0.2);
-	  }
+	}
+	break;
+
+	case ' ': {
+		if (missileTimer > reloadTime) {
+			firePlayerMissile = true;
+			missileTimer = 0;
+		}
+	}
 	break;
 
 	}
@@ -146,6 +164,22 @@ void display(void)
 	blimp2->draw();
 	blimp2->tick();
 
+	if (firePlayerMissile) {
+		float blimpBottom = blimp->getBottomBlimpY();
+		float missileRotation = -1 * toRadians(blimp->getRotation());
+
+		float missileX = blimp->getX();
+		float missileY = blimp->getY() + blimpBottom;
+		float missileZ = blimp->getZ();
+		
+		missile1 = new Missile(missileX, missileY, missileZ, missileRotation);
+
+		firePlayerMissile = false;
+		drawMissile = true;
+	} else if (drawMissile && missileTimer < reloadTime + 1) {
+		missile1->draw();
+		missileTimer ++;
+	}
 
 	glutSwapBuffers();   // Double buffering, swap buffers
 }
@@ -154,7 +188,3 @@ void display(void)
 void displayIdle() { 
 	display();
 }
-
-
-
-
