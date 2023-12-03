@@ -18,13 +18,17 @@ public:
 	float getTargetAngle();
 	float getNextDirection(float curAngle, float nextAngle);
 
+	
+	
+
 
 private:
 	Blimp* target;
 	long long lastFireTime;
-	long long lastPatrolAngleSwitchTime;
-	bool turnTowardsAngle(float targetAngle);
-	float idleTargetAngle;
+	long timeInRange;
+
+
+
 };
 
 

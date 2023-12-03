@@ -69,7 +69,7 @@ void Blimp::moveForward(float x, float z) {
 
 
 void Blimp::fireMissile() {
-
+	
 }
 
 
@@ -94,14 +94,6 @@ void Blimp::setRotation(float angDeg) {
 	this->rotationHorizontal = angDeg;
 }
 
-
-void Blimp::setLocation(float x, float y, float z) {
-	this->locX = x;
-	this->locY = y;
-	this->locZ = z;
-}
-
-
 float Blimp::getRotation() {
 	return this->rotationHorizontal;
 }
@@ -124,6 +116,12 @@ float Blimp::getZ() {
 	return this->locZ;
 }
 
+
+float Blimp::getBottomBlimpY() {
+	float bodyHeight = SCALE / 2;
+	float cabinHeight = SCALE / 4;
+	return (bodyHeight / 2) - cabinHeight - SCALE;
+}
 
 
 
@@ -150,7 +148,7 @@ void Blimp::draw() {
 
 	
 		glPushMatrix();
-		drawBody();
+		//drawBody();
 		drawCarriage();
 		drawFins();
 		drawEngine();
