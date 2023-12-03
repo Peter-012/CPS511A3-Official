@@ -124,7 +124,11 @@ float Blimp::getZ() {
 	return this->locZ;
 }
 
-
+float Blimp::getBottomBlimpY() {
+	float bodyHeight = SCALE / 2;
+	float cabinHeight = SCALE / 4;
+	return (bodyHeight / 2) - cabinHeight - SCALE;
+}
 
 
 
