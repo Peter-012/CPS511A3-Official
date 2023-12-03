@@ -9,10 +9,12 @@
 #include "header/Util.h"
 #include <algorithm>
 
-
 //dist where the enemy should start tracking the player.
 const float TRACKING_DIST = 32;
 const float FIRE_DIST = 16;
+const float FIRE_NEAR = 5;
+const long long FIRE_COOLDOWN_ENEMY = 1000;
+const long long PATROL_TIME = 1000;
 
 const float PI = 3.14159265;
 
@@ -23,7 +25,9 @@ const float PI = 3.14159265;
 Enemy::Enemy(float x, float y, float z, Blimp* player) : Blimp {x,y,z} {
 	this->target = player;
 	this->lastFireTime = 0;
-	this->timeInRange = 0;
+	this->lastPatrolAngleSwitchTime = 0;
+	this->idleTargetAngle = 0;
+
 }
 
 void Enemy::tick() {
@@ -50,37 +54,99 @@ void Enemy::tick() {
 // Move towards the target and try to fire a missile
 void Enemy::trackTarget(float currentDist) {
 
-	bool aiming = false;
-	float direction = this->getTargetAngle();
-	float next = this->getNextDirection(this->getRotation(), direction);
-	
-	double targetDiffAngle = abs(direction - next);
 
-	const int ANGLE_DIFFERENCE = 3;
-	if (targetDiffAngle > ANGLE_DIFFERENCE) {
-		this->setRotation(next);
-		aiming = true;
+	const int ANGLE_MAX = 90;
+
+	//the threshold where we set the vertical location instead of adding to it
+	const float VERTICAL_INCREMENT = 0.05;
+
+	const float DIST_INCREMENT = 0.1;
+
+
+	///logic for aiming at the player
+	
+	float direction = this->getTargetAngle();
+	bool aiming = turnTowardsAngle(direction);
+
+	
+	///logic for going up and down
+	float diffY = (target->getY() - this->getY());
+
+	if (abs(diffY) < VERTICAL_INCREMENT) {
+		this->setLocation(this->getX(), target->getY(), this->getZ());
 	}
 	else {
-		this->setRotation(direction);
+		if (diffY > 0) {
+			this->addLocation(0, VERTICAL_INCREMENT, 0);
+		}
+		else if (diffY < 0) {
+			this->addLocation(0, -VERTICAL_INCREMENT, 0);
+		}
+	}
+	
+
+	bool inRange = false;
+	if (currentDist > FIRE_DIST && aiming) {
+		float distToFire = abs(currentDist - FIRE_DIST);
+
+		if (!aiming) {
+			return;
+		}
+		
+		if (distToFire >= FIRE_NEAR + 1) {
+			if (distToFire < DIST_INCREMENT) {
+				inRange = true;
+			}
+			else {
+				this->moveForward(DIST_INCREMENT, DIST_INCREMENT);
+			}
+		}
+		else {
+
+			if (distToFire < DIST_INCREMENT) {
+				inRange = true;
+			}
+			else {
+				if (distToFire < FIRE_NEAR - 1) {
+					this->moveForward(-DIST_INCREMENT, -DIST_INCREMENT);
+				}
+			}
+		}	
 	}
 
-	//if (currentDist > FIRE_DIST && aiming) {
-	//	float distToFire = currentDist - FIRE_DIST;
 
-	//	const float FIRE_DIST_INACCURACY = 1;
-	//	if ()
+	long long currentTime = currentTimeMillis();
+	if (currentTime - this->lastFireTime > FIRE_COOLDOWN_ENEMY) {
+			this->lastFireTime = currentTime;
+
+			printf("Enemy fires missiles here");
 		
+	}
 
-
-
-	//}
 }
+
 
 
 
 //Patrol the area
 void Enemy::moveRandomly() {
+
+	bool changed = false;
+	long long currentTime = currentTimeMillis();
+	//printf("%d\n", currentTime);
+
+	long long diff = currentTime - this->lastPatrolAngleSwitchTime;
+	
+	if (diff > PATROL_TIME) {
+		changed = true;
+		idleTargetAngle = rand() % 360;
+		this->lastPatrolAngleSwitchTime = currentTimeMillis();
+	}
+	
+	this->moveForward(0.1, 0.1);
+	this->turnTowardsAngle(idleTargetAngle);
+	
+	
 
 
 }
@@ -163,4 +229,21 @@ float Enemy::getTargetAngle() {
 }
 
 
+bool Enemy::turnTowardsAngle(float direction) {
+
+	//the threshold where we set the rotation instead of adding to the rotation
+	const int ANGLE_DIFFERENCE = 3;
+	float next = this->getNextDirection(this->getRotation(), direction);
+	double targetDiffAngle = abs(direction - next);
+
+	if (targetDiffAngle > ANGLE_DIFFERENCE) {
+		this->setRotation(next);
+		return true;
+	}
+	else {
+		this->setRotation(direction);
+		return false;
+	}
+
+}
 
