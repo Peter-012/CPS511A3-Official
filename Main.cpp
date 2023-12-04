@@ -23,19 +23,24 @@
 #include "header/GroundMesh.h"
 #include "header/WindowHandler.h"
 #include "header/Enemy.h"
-#include "header/Missile.h"
+//#include "header/Missile.h"
 #include "header/Util.h"
-
+#include "header/RayTrace.h"
+#include "header/ObjectPositionHandler.h"
 
 const int VIEWPORT_WIDTH  = 800;    // Viewport width in pixels
 const int VIEWPORT_HEIGHT = 600;    // Viewport height in pixels
 
-int windowBird, windowFPV;
+
 
 GroundMesh* ground = new GroundMesh(16, 0, -20, 5);
-Blimp* blimp = new Blimp(0, -1, 15, 90.0);
-Enemy* blimp2 = new Enemy(0, -1, -10, -90.0, blimp);
-Missile* missile1;
+Blimp* blimp = new Blimp(0,-1,-10);
+Enemy* blimp2 = new Enemy(0, 0, 0, blimp);
+
+ObjectPositionHandler* handler = new ObjectPositionHandler();
+
+
+//Missile* missile1;
 
 bool firePlayerLazer = false;
 
@@ -49,42 +54,38 @@ int meshSize = 16;
 
 // Prototypes for functions in this module
 
-void displayIdleBird(void);
-void displayIdleFPV(void);
+void displayIdle(void);
 void keyboard(unsigned char key, int x, int y);
 void keyboardSpecial(int key, int x, int y);
-void displayBird();
-void displayFPV();
+void display();
+
+
 
 
 
 int main(int argc, char **argv)
 {
+	handler->setPlayer(blimp);
+	handler->setEnemy(blimp2);
+
+
 	// Initialize GLUT
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 	glutInitWindowSize(VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-	glutInitWindowPosition(950, 200);
-	
-	// Bird's Eye View Window
-	windowBird = glutCreateWindow("Blimp - Bird's Eye View");
+	glutInitWindowPosition(200, 30);
+	glutCreateWindow("Blimp");
+
+	// Initialize GL
 	initOpenGL(VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-	glutDisplayFunc(displayBird);
+
+	// Register callback functions
+	glutDisplayFunc(display);
+
 	glutReshapeFunc(reshape);
 	glutSpecialFunc(keyboardSpecial);
 	glutKeyboardFunc(keyboard);
-	glutIdleFunc(displayIdleBird);
-	
-	// First Person View Window
-	windowFPV = glutCreateWindow("Blimp - First Person View");
-	glutPositionWindow(150, 200);
-	initOpenGL(VIEWPORT_WIDTH, VIEWPORT_HEIGHT);
-	glutDisplayFunc(displayFPV);
-	glutReshapeFunc(reshape);
-	glutSpecialFunc(keyboardSpecial);
-	glutKeyboardFunc(keyboard);
-	glutIdleFunc(displayIdleFPV);
-	
+	glutIdleFunc(displayIdle);
 	glutMainLoop();
 
 	return 0;
@@ -101,29 +102,52 @@ void keyboard(unsigned char key, int x, int y) {
 	  }
 	break;
 	case 's': {
-		blimp->moveBackward(0.5, 0.5);
+		blimp->moveForward(-0.5, -0.5);
 		//blimp2->moveForward(0.2, 0.2);
 	}
-	break;
+			break;
+
+
 
 	case ' ': {
 		if (!firePlayerLazer) {
-			blimp->fireLaser();
+
+			BoundingBox eBox = blimp2->getCurrentBoundingBoxState();
+
+
+			//the -2 for the y is to account for the fact that the lazer is below
+			VECTOR3D* playerLoc = new VECTOR3D(blimp->getX(), blimp->getY() - 2, blimp->getZ());
+			VECTOR3D playerDir = blimp->getDirection();
+			HitResult hitEnemy = rayTrace(&eBox, playerLoc, &playerDir);
+
+			bool hasHitEnemy = hitEnemy.hitEntity;
+
+			if (hasHitEnemy) {
+				
+				VECTOR3D hitLoc = hitEnemy.hitPos;
+				float diffX = hitLoc.GetX() - playerLoc->GetX();
+				float diffZ = hitLoc.GetZ() - playerLoc->GetZ();
+			
+				float distance = sqrt(diffX * diffX + diffZ * diffZ);
+				blimp->setLazerScale(distance);
+				blimp->setLazerScaleUpdated(true);
+			}
+			else {
+				blimp->setLazerScaleUpdated(false);
+			}
+
+
+
+			blimp->fireLazer();
 			firePlayerLazer = true;
 		} else {
-			blimp->stopLaser();
+			blimp->stopLazer();
 			firePlayerLazer = false;
 		}	
 	}
 	break;
 	}
-
-	// Trigger a window redisplay
 	glutPostRedisplay();
-	glutSetWindow(windowBird);
-	glutPostRedisplay();
-	glutSetWindow(windowFPV);
-
 }
 
 
@@ -158,54 +182,16 @@ void keyboardSpecial(int key, int x, int y)
 
 	}
 
-	// Trigger a window redisplay
-	glutPostRedisplay();
-	glutSetWindow(windowBird);
-	glutPostRedisplay();
-	glutSetWindow(windowFPV);
+	glutPostRedisplay();   // Trigger a window redisplay
 }
 
 
 
-void displayBird(void)
+void display(void)
 {
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
-
-
-	loadIdentityCustom();
-
-	// Bird's Eye View
-	float viewHeight = 50.0;
-	float blimpX = blimp->getX();
-	float blimpZ = blimp->getZ();
-	gluLookAt(blimpX, viewHeight, blimpZ, blimpX, 0.0, blimpZ, 0.0, 0.0, 1.0);
-	
-	
-	//glLoadIdentity();
-
-	ground->draw();
-	blimp->draw();
-
-	blimp2->draw();
-	blimp2->tick();
-
-	glutSwapBuffers();   // Double buffering, swap buffers
-}
-
-
-void displayIdleBird() { 
-	displayBird();
-}
-
-
-
-void displayFPV(void)
-{
-
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 
 
 	loadIdentityCustom();
@@ -216,8 +202,17 @@ void displayFPV(void)
 	blimp->cameraPosition(&eyeX, &eyeY, &eyeZ, &centerX, &centerY, &centerZ);
 
 	//FPV View
-	gluLookAt(eyeX, eyeY, eyeZ, centerX, centerY, centerZ, 0.0, 1.0, 0.0);
+	//gluLookAt(eyeX, eyeY, eyeZ, centerX, centerY, centerZ, 0.0, 1.0, 0.0);
 
+	// Bird's Eye View
+	float viewHeight = 50.0;
+	gluLookAt(0.0, viewHeight, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
+
+
+	//default view
+	//gluLookAt(0.0, 6.0, 22.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+	
+	
 	//glLoadIdentity();
 
 	ground->draw();
@@ -230,6 +225,10 @@ void displayFPV(void)
 }
 
 
-void displayIdleFPV() {
-	displayFPV();
+void displayIdle() { 
+	display();
 }
+
+
+
+

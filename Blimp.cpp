@@ -5,6 +5,8 @@
 #include <math.h>
 #include "header/Transformations.h"
 #include "header/WindowHandler.h"
+#include "header/BoundingBox.h"
+#include "header/VECTOR3D.h"
 
 
 
@@ -19,18 +21,19 @@ const float PI = 3.14159265;
 
 
 
-Blimp::Blimp(float locX, float locY, float locZ, float rotationHorizontal) {
+Blimp::Blimp(float locX, float locY, float locZ) {
 		this->locX = locX;
 		this->locY = locY;
 		this->locZ = locZ;
 		this->lastY = 0;
+		this->lazerScale = 1;
 
 		this->isAlive = true;
 
 		this->velocity = { 0, 0 ,0 }; //basically the velocity of the blimp
 
 
-		this->rotationHorizontal = rotationHorizontal;
+		this->rotationHorizontal = 0;
 		this->propRotation = 0;
 		this->drawLazerToggle = false;
 
@@ -59,15 +62,14 @@ void Blimp::cameraPosition(
 	float angle = this->getRotation();
 	float angleRads = (angle * PI) / 180;
 
-	float distNear = 5.0;
-	*eyeX = this->locX + distNear * cos(angleRads);
+	*eyeX = -1 * (this->locZ + (- 1 * sin(angleRads)));
 	*eyeY = this->locY;
-	*eyeZ = this->locZ - distNear * sin(angleRads);
+	*eyeZ = this->locX + cos(angleRads);
 
-	float distFar = 25.0;
-	*centerX = this->locX + distFar * cos(angleRads);
-	*centerY = this->locY;
-	*centerZ = this->locZ - distFar * sin(angleRads);
+	float dist = 5.0;
+	*centerX = *eyeX * dist;
+	*centerY = *eyeY;
+	*centerZ = *eyeZ * dist;
 }
 
 
@@ -82,22 +84,22 @@ void Blimp::moveForward(float x, float z) {
 	this->addLocation(directionX * x, 0, -directionZ * z);
 }
 
-void Blimp::moveBackward(float x, float z) {
+
+VECTOR3D Blimp::getDirection() {
 	float angle = this->getRotation();
 	float angleRads = (angle * PI) / 180;
 
-
 	double directionX = cos(angleRads);
 	double directionZ = sin(angleRads);
-
-	this->addLocation(directionX * -x, 0, -directionZ * -z);
+	return VECTOR3D(directionX, 0, -directionZ);
 }
 
-void Blimp::fireLaser() {
+
+void Blimp::fireLazer() {
 	this->drawLazerToggle = true;
 }
 
-void Blimp::stopLaser() {
+void Blimp::stopLazer() {
 	this->drawLazerToggle = false;
 }
 
@@ -130,6 +132,10 @@ void Blimp::setLocation(float x, float y, float z) {
 	this->locZ = z;
 }
 
+void Blimp::setLazerScale(float scale) {
+	this->lazerScale = scale;
+}
+
 
 float Blimp::getRotation() {
 	return this->rotationHorizontal;
@@ -138,10 +144,6 @@ float Blimp::getRotation() {
 
 bool Blimp::getIsAlive() {
 	return this->isAlive;
-}
-
-void Blimp::setIsAlive(bool isAlive) {
-	this->isAlive = isAlive;
 }
 
 
@@ -157,10 +159,32 @@ float Blimp::getZ() {
 	return this->locZ;
 }
 
+void Blimp::setLazerScaleUpdated(bool updated) {
+	this->lazerScaleUpdated = updated;
+}
+
 float Blimp::getBottomBlimpY() {
 	float bodyHeight = SCALE / 2;
 	float cabinHeight = SCALE / 4;
 	return (bodyHeight / 2) - cabinHeight - SCALE;
+}
+
+
+BoundingBox Blimp::getCurrentBoundingBoxState() {
+	float minX, maxX, minY, maxY, minZ, maxZ;
+	const float BOX_SCALE = 2;
+
+	minX = this->getX() - BOX_SCALE;
+	maxX = this->getX() + BOX_SCALE;
+
+	minY = this->getY() - BOX_SCALE;
+	maxY = this->getY() + BOX_SCALE;
+
+	minZ = this->getZ() - BOX_SCALE;
+	maxZ = this->getZ() + BOX_SCALE;
+
+	return BoundingBox(minX, maxX, minY, maxY, minZ, maxZ);
+
 }
 
 
@@ -174,10 +198,6 @@ float Blimp::getBottomBlimpY() {
 
 
 void Blimp::draw() {
-
-		if (!this->isAlive) {
-			return;
-		}
 
 		glPushMatrix();  //the matrix stack is still there after you exit the function. If you do this and don't pop
 		                     //it'll break
@@ -194,35 +214,16 @@ void Blimp::draw() {
 		drawFins();
 		drawEngine();
 
+		if (this->drawLazerToggle) {
+			drawLazer();
+		}
+		
 		propRotation += 10;
 		if (propRotation > 360) {
 			propRotation -= 360;
 		}
 
 		glPopMatrix();
-
-
-		/*
-		// gluLookAt Test
-		float eyeX; float eyeY; float eyeZ;
-		float centerX; float centerY; float centerZ;
-
-		this->cameraPosition(&eyeX, &eyeY, &eyeZ, &centerX, &centerY, &centerZ);
-
-		// Eye Cube Test
-		glPushMatrix();
-		glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, blimpYellow);
-		translateCustom(eyeX, eyeY, eyeZ);
-		glutSolidCube(SCALE);
-		glPopMatrix();
-
-		// Center Cube Test
-		glPushMatrix();
-		glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, blimpBlue);
-		translateCustom(centerX, centerY, centerZ);
-		glutSolidCube(SCALE);
-		glPopMatrix();
-		*/
 }
 
 
@@ -234,9 +235,6 @@ void Blimp::drawBody() {
 
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, blimpBlue);
 	glMatrixMode(GL_MODELVIEW);
-
-
-
 
 	//glScalef(SCALE, SCALE / 2, SCALE / 2);
 	scaleCustom(SCALE, SCALE / 2, SCALE / 2);
@@ -263,21 +261,38 @@ void Blimp::drawCarriage() {
 	//glScalef(SCALE/3, SCALE/4, SCALE/6);
 
 	glutSolidCube(SCALE);
-
-	if (this->drawLazerToggle) {
-		glPushMatrix();
-		glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, blimpYellow);
-
-		glPushMatrix();
-		translateCustom(SCALE * 16, 0, 0);
-		scaleCustom(SCALE * 8, SCALE / 20, SCALE / 20);
-		glutSolidSphere(SCALE, RESOLUTION, RESOLUTION);
-		glPopMatrix();
-	}
-
 	glPopMatrix();
 
 }
+
+
+
+void Blimp::drawLazer() {
+
+
+
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, blimpYellow);
+	glPushMatrix();
+
+		const float DEFAULT_DIST_SCALE = 8 * SCALE;
+
+	float distanceLazerScale;
+	if (this->lazerScaleUpdated) {
+		distanceLazerScale = this->lazerScale * 0.25;
+	}
+	else {
+		distanceLazerScale = DEFAULT_DIST_SCALE;
+	}
+
+	translateCustom(distanceLazerScale * 2, -1 * (SCALE + (SCALE / 10)), 0);
+
+	scaleCustom(distanceLazerScale, SCALE / 20, SCALE / 20);
+	glutSolidSphere(SCALE, RESOLUTION, RESOLUTION);
+	glPopMatrix();
+}
+
+
+
 
 void Blimp::drawFins() {
 

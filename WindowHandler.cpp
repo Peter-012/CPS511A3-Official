@@ -35,6 +35,7 @@ void reshape(int w, int h)
 
 }
 
+
 // Set up OpenGL. For viewport and projection setup see reshape(). 
 void initOpenGL(int w, int h)
 {

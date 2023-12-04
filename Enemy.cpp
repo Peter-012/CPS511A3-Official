@@ -13,8 +13,7 @@
 const float TRACKING_DIST = 32;
 const float FIRE_DIST = 16;
 const float FIRE_NEAR = 5;
-const long long FIRE_DURATION_ENEMY = 2000;
-const long long FIRE_COOLDOWN_ENEMY = FIRE_DURATION_ENEMY + 5000;
+const long long FIRE_COOLDOWN_ENEMY = 1000;
 const long long PATROL_TIME = 1000;
 
 const float PI = 3.14159265;
@@ -23,12 +22,12 @@ const float PI = 3.14159265;
   :Blimp{x,y,z} is basically calling the superclass Blimp with x,y and z.
   Think of it as super(x,y,z).
 */
-Enemy::Enemy(float x, float y, float z, float rotationHorizontal, Blimp* player) : Blimp {x,y,z,rotationHorizontal} {
+Enemy::Enemy(float x, float y, float z, Blimp* player) : Blimp {x,y,z} {
 	this->target = player;
 	this->lastFireTime = 0;
 	this->lastPatrolAngleSwitchTime = 0;
 	this->idleTargetAngle = 0;
-	this->toggleFireLaser = true;
+
 }
 
 void Enemy::tick() {
@@ -43,11 +42,11 @@ void Enemy::tick() {
 	float distFromTarget = sqrt(abs(diffX*diffX  + diffY*diffY  +  diffZ*diffZ));
 
 	if (distFromTarget > TRACKING_DIST) {
-		this->moveRandomly();
+		//this->moveRandomly();
 		return;
 	}
 
-	this->trackTarget(distFromTarget);
+//	this->trackTarget(distFromTarget);
 }
 
 
@@ -59,7 +58,7 @@ void Enemy::trackTarget(float currentDist) {
 	const int ANGLE_MAX = 90;
 
 	//the threshold where we set the vertical location instead of adding to it
-	const float VERTICAL_INCREMENT = 0.005;
+	const float VERTICAL_INCREMENT = 0.05;
 
 	const float DIST_INCREMENT = 0.1;
 
@@ -117,22 +116,14 @@ void Enemy::trackTarget(float currentDist) {
 	}
 
 
-
 	long long currentTime = currentTimeMillis();
-	long long deltaTime = currentTime - this->lastFireTime;
-
-	if (deltaTime > FIRE_COOLDOWN_ENEMY) {
+	if (currentTime - this->lastFireTime > FIRE_COOLDOWN_ENEMY) {
+		this->fireLazer();
 		this->lastFireTime = currentTime;
-		if (!toggleFireLaser) {
-			toggleFireLaser = true;
-			this->fireLaser();
-		}
-	} else if (deltaTime > FIRE_DURATION_ENEMY) {
-		if (toggleFireLaser) {
-			toggleFireLaser = false;
-			this->stopLaser();
-		}
+	} else {
+		this->stopLazer();
 	}
+
 }
 
 

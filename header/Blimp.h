@@ -2,6 +2,8 @@
 
 #include <gl/glut.h>;
 #include <vector>;
+#include "header/BoundingBox.h"
+#include "VECTOR3D.h"
 
 #ifndef BLIMP_H
 #define BLIMP_H
@@ -22,19 +24,23 @@ public:
 	float getY();
 	float getZ();
 	float getBottomBlimpY();
-	void fireMissile();
+	void fireLazer(); ////
+	void stopLazer();
+	BoundingBox getCurrentBoundingBoxState();
+	VECTOR3D getDirection();
 
-
-	std::vector<float> getLocation();
 	void moveForward(float x, float z);
+	void cameraPosition(
+		float* eyeX, float* eyeY, float* eyeZ,
+		float* centerX, float* centerY, float* centerZ
+	);
 	bool getIsAlive();
+
+
+	void setLazerScale(float scale);
+	void setLazerScaleUpdated(bool updated);
 	
-
-
-
 	
-
-
 protected:
 	float locX;
 	float locY;
@@ -44,6 +50,9 @@ protected:
 
 	float propRotation;
 
+	bool drawLazerToggle;
+	float lazerScale;
+	bool lazerScaleUpdated;
 
 	bool isAlive;
 	
@@ -58,6 +67,7 @@ protected:
 	void drawFins();
 	void drawCarriage();
 	void drawEngine();
+	void drawLazer();
 
 };
 
