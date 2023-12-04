@@ -13,7 +13,8 @@
 const float TRACKING_DIST = 32;
 const float FIRE_DIST = 16;
 const float FIRE_NEAR = 5;
-const long long FIRE_COOLDOWN_ENEMY = 1000;
+const long long FIRE_DURATION_ENEMY = 2000;
+const long long FIRE_COOLDOWN_ENEMY = FIRE_DURATION_ENEMY + 5000;
 const long long PATROL_TIME = 1000;
 
 const float PI = 3.14159265;
@@ -22,12 +23,12 @@ const float PI = 3.14159265;
   :Blimp{x,y,z} is basically calling the superclass Blimp with x,y and z.
   Think of it as super(x,y,z).
 */
-Enemy::Enemy(float x, float y, float z, Blimp* player) : Blimp {x,y,z} {
+Enemy::Enemy(float x, float y, float z, float rotationHorizontal, Blimp* player) : Blimp {x,y,z,rotationHorizontal} {
 	this->target = player;
 	this->lastFireTime = 0;
 	this->lastPatrolAngleSwitchTime = 0;
 	this->idleTargetAngle = 0;
-
+	this->toggleFireLaser = true;
 }
 
 void Enemy::tick() {
@@ -58,7 +59,7 @@ void Enemy::trackTarget(float currentDist) {
 	const int ANGLE_MAX = 90;
 
 	//the threshold where we set the vertical location instead of adding to it
-	const float VERTICAL_INCREMENT = 0.05;
+	const float VERTICAL_INCREMENT = 0.005;
 
 	const float DIST_INCREMENT = 0.1;
 
@@ -70,10 +71,11 @@ void Enemy::trackTarget(float currentDist) {
 
 	
 	///logic for going up and down
-	float diffY = (target->getY() - this->getY());
+	const float OFFSET_Y = 2;
+	float diffY = (target->getY() - this->getY()) + OFFSET_Y;
 
 	if (abs(diffY) < VERTICAL_INCREMENT) {
-		this->setLocation(this->getX(), target->getY(), this->getZ());
+		this->setLocation(this->getX(), target->getY() + OFFSET_Y, this->getZ());
 	}
 	else {
 		if (diffY > 0) {
@@ -115,14 +117,22 @@ void Enemy::trackTarget(float currentDist) {
 	}
 
 
+
 	long long currentTime = currentTimeMillis();
-	if (currentTime - this->lastFireTime > FIRE_COOLDOWN_ENEMY) {
-			this->lastFireTime = currentTime;
+	long long deltaTime = currentTime - this->lastFireTime;
 
-			printf("Enemy fires missiles here");
-		
+	if (deltaTime > FIRE_COOLDOWN_ENEMY) {
+		this->lastFireTime = currentTime;
+		if (!toggleFireLaser) {
+			toggleFireLaser = true;
+			this->fireLaser();
+		}
+	} else if (deltaTime > FIRE_DURATION_ENEMY) {
+		if (toggleFireLaser) {
+			toggleFireLaser = false;
+			this->stopLaser();
+		}
 	}
-
 }
 
 
